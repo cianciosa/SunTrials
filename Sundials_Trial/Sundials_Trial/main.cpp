@@ -13,9 +13,33 @@
 
 #include <iostream>
 
+#include <chrono>
+
 #include "nvector_custom.hpp"
 #include "matrix_custom.hpp"
 #include "linear_solve_custom.hpp"
+
+//------------------------------------------------------------------------------
+///  @brief Print out timings.
+///
+///  @param[in] name Discription of the times.
+///  @param[in] time Elapsed time in nanoseconds.
+//------------------------------------------------------------------------------
+void write_time(const std::string &name, const std::chrono::nanoseconds time) {
+    if (time.count() < 1000) {
+        std::cout << name << time.count()               << " ns" << std::endl;
+    } else if (time.count() < 1000000) {
+        std::cout << name << time.count()/1000.0        << " μs" << std::endl;
+    } else if (time.count() < 1000000000) {
+        std::cout << name << time.count()/1000000.0     << " ms" << std::endl;
+    } else if (time.count() < 60000000000) {
+        std::cout << name << time.count()/1000000000.0  << " s" << std::endl;
+    } else if (time.count() < 3600000000000) {
+        std::cout << name << time.count()/60000000000.0 << " min" << std::endl;
+    } else {
+        std::cout << name << time.count()/3600000000000 << " h" << std::endl;
+    }
+}
 
 //  The system of equations to solve.
 //
@@ -84,6 +108,8 @@ static realtype solution(realtype t) {
 }
 
 int main(int argc, const char * argv[]) {
+    const std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    
     sundials::Context ctx;
 
     size_t neq = 1;
@@ -111,11 +137,11 @@ int main(int argc, const char * argv[]) {
     std::cout << "t = " << 0.0 << " ";
     //std::cout << NVEC_CUSTOM_CONTENT(y)->buffer[0] << std::endl;
     std::cout << NV_DATA_S(y)[0] << std::endl;
-    
-    realtype tout = 0.4;
-    realtype tmult = 50.0/999;
+
+    realtype tmult = 1.0/10000.0;
+    realtype tout = tmult;
     realtype t;
-    for (size_t i = 0; i < 1000; i++) {
+    for (size_t i = 0; i < 10000; i++) {
         CVode(cvode_ctx, tout, y, &t, CV_NORMAL);
         tout += tmult;
         
@@ -132,6 +158,17 @@ int main(int argc, const char * argv[]) {
     CVodeFree(&cvode_ctx);
     SUNLinSolFree(ls);
     SUNMatDestroy(a);
+
+    const std::chrono::high_resolution_clock::time_point evaluate = std::chrono::high_resolution_clock::now();
+
+    const auto total_time = evaluate - start;
+
+    const std::chrono::nanoseconds total_time_ns = std::chrono::duration_cast<std::chrono::nanoseconds> (total_time);
+
+    std::cout << std::endl << "Timing:" << std::endl;
+    std::cout << std::endl;
+    write_time("  Total time : ", total_time_ns);
+    std::cout << std::endl;
     
     return 0;
 }

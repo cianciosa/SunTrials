@@ -285,14 +285,9 @@
 			buildSettings = {
 				CLANG_ADDRESS_SANITIZER_CONTAINER_OVERFLOW = YES;
 				CODE_SIGN_STYLE = Automatic;
-				OTHER_CPLUSPLUSFLAGS = (
-					"$(OTHER_CFLAGS)",
-					"-fsanitize=address",
-				);
-				OTHER_LDFLAGS = (
-					"-lsundials_cvode",
-					"-fsanitize=address",
-				);
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
+				OTHER_LDFLAGS = "-lsundials_cvode";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
