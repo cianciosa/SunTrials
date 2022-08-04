@@ -19,6 +19,8 @@
 #include "matrix_custom.hpp"
 #include "linear_solve_custom.hpp"
 
+//#define CUSTOM
+
 //------------------------------------------------------------------------------
 ///  @brief Print out timings.
 ///
@@ -85,8 +87,11 @@ static int jacobian(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
 //  dy/dt = -1.0E3(y - Exp(-t)) - Exp(-t)
 //
 static int right_hand_side2(realtype t, N_Vector y, N_Vector y_dot, void *user_data) {
-    //NVEC_CUSTOM_CONTENT(y_dot)->buffer[0] = -1.0E3*(NVEC_CUSTOM_CONTENT(y)->buffer[0] - std::exp(-t)) - std::exp(-t);
+#ifdef CUSTOM
+    NVEC_CUSTOM_CONTENT(y_dot)->buffer[0] = -1.0E3*(NVEC_CUSTOM_CONTENT(y)->buffer[0] - std::exp(-t)) - std::exp(-t);
+#else
     NV_DATA_S(y_dot)[0] = -1.0E3*(NV_DATA_S(y)[0] - std::exp(-t)) - std::exp(-t);
+#endif
     
     return 0;
 }
@@ -97,9 +102,12 @@ static int right_hand_side2(realtype t, N_Vector y, N_Vector y_dot, void *user_d
 //
 static int jacobian2(realtype t, N_Vector y, N_Vector fy, SUNMatrix J,
                      void *userdata, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3) {
-    //SUNMATRIX_CUSTOM_CONTENT(J)->data[0] = -1.0E3;
+#ifdef CUSTOM
+    SUNMATRIX_CUSTOM_CONTENT(J)->data[0] = -1.0E3;
+#else
     SM_DATA_D(J)[0] = -1.0E3;
-    
+#endif
+
     return 0;
 }
 
@@ -113,30 +121,46 @@ int main(int argc, const char * argv[]) {
     sundials::Context ctx;
 
     size_t neq = 1;
-    
-    N_Vector y = N_VNew_Serial(neq, ctx);//N_VNewEmpty_Custom(ctx, neq);
-    N_Vector abstol = N_VClone_Serial(y);//N_VClone_Custom(y);
+
+#ifdef CUSTOM
+    N_Vector y = N_VNewEmpty_Custom(ctx, neq);
+    N_Vector abstol = N_VClone_Custom(y);
+#else
+    N_Vector y = N_VNew_Serial(neq, ctx);
+    N_Vector abstol = N_VClone_Serial(y);
+#endif
     
     double tol = 1.0E-15;
-    
-    //NVEC_CUSTOM_CONTENT(y)->buffer[0] = 0.0;
-    //NVEC_CUSTOM_CONTENT(abstol)->buffer[0] = tol;
+
+#ifdef  CUSTOM
+    NVEC_CUSTOM_CONTENT(y)->buffer[0] = 0.0;
+    NVEC_CUSTOM_CONTENT(abstol)->buffer[0] = tol;
+#else
     NV_DATA_S(y)[0] = 0.0;
     NV_DATA_S(abstol)[0] = tol;
+#endif
     
     auto cvode_ctx = CVodeCreate(CV_BDF, ctx);
     CVodeInit(cvode_ctx, right_hand_side2, 0.0, y);
     CVodeSVtolerances(cvode_ctx, tol, abstol);
     
-    SUNMatrix a = SUNDenseMatrix(neq, neq, ctx);//SUNCustomMatrix(neq, neq, ctx);
-    SUNLinearSolver ls = SUNLinSol_Dense(y, a, ctx);//SUNLinSol_Custom(y, a, ctx);
+#ifdef CUSTOM
+    SUNMatrix a = SUNCustomMatrix(neq, neq, ctx);
+    SUNLinearSolver ls = SUNLinSol_Custom(y, a, ctx);
+#else
+    SUNMatrix a = SUNDenseMatrix(neq, neq, ctx);
+    SUNLinearSolver ls = SUNLinSol_Dense(y, a, ctx);
+#endif
     
     CVodeSetLinearSolver(cvode_ctx, ls, a);
     CVodeSetJacFn(cvode_ctx, jacobian2);
     
     std::cout << "t = " << 0.0 << " ";
-    //std::cout << NVEC_CUSTOM_CONTENT(y)->buffer[0] << std::endl;
+#ifdef CUSTOM
+    std::cout << NVEC_CUSTOM_CONTENT(y)->buffer[0] << std::endl;
+#else
     std::cout << NV_DATA_S(y)[0] << std::endl;
+#endif
 
     realtype tmult = 1.0/10000.0;
     realtype tout = tmult;
@@ -144,11 +168,14 @@ int main(int argc, const char * argv[]) {
     for (size_t i = 0; i < 10000; i++) {
         CVode(cvode_ctx, tout, y, &t, CV_NORMAL);
         tout += tmult;
-        
+
+#ifdef CUSTOM
+        const realtype numeric = NVEC_CUSTOM_CONTENT(y)->buffer[0];
+#else
         const realtype numeric = NV_DATA_S(y)[0];
-        
+#endif
+
         std::cout << "t = " << t << " ";
-        //std::cout << NVEC_CUSTOM_CONTENT(y)->buffer[0] << std::endl;
         std::cout << numeric << " ";
         std::cout << std::abs(numeric - solution(t)) << std::endl;
     }
